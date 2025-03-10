@@ -47,12 +47,12 @@ def run(plan, args):
     postgres_url = "postgresql://{}:{}@{}:{}/{}".format(
         POSTGRES_USER,
         POSTGRES_PASSWORD,
-        postgres.ip_address,
+        postgres.hostname,
         postgres.ports[POSTGRES_PORT_ID].number,
         POSTGRES_DB,
     )
     api = plan.add_service(
-        name = "api", # 将我们的 PostgREST 服务命名为 "api"
+        name = "api",
         config = ServiceConfig(
             image = "postgrest/postgrest:v10.2.0",
             env_vars = {
@@ -60,5 +60,20 @@ def run(plan, args):
                 "PGRST_DB_ANON_ROLE": POSTGRES_USER,
             },
             ports = {POSTGREST_PORT_ID: PortSpec(3000, application_protocol = "http")},
+        )
+    )
+
+    # 插入数据
+    if "actors" in args:
+        insert_data(plan, args["actors"])
+
+def insert_data(plan, data):
+    plan.request(
+        service_name = "api",
+        recipe = PostHttpRequestRecipe(
+            port_id = POSTGREST_PORT_ID,
+            endpoint = "/actor",
+            content_type = "application/json",
+            body = json.encode(data),
         )
     )
