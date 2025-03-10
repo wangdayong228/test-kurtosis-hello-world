@@ -1,5 +1,7 @@
-name: github.com/example-org/example-package
+name: github.com/wangdayong228/test-kurtosis-hello-world
 description: |-
-  # github.com/example-org/example-package
-  Enter description Markdown here.
+  # github.com/wangdayong228/test-kurtosis-hello-world
+  a simple demo of kurtosis
+  it will create a postgres server and a postgrest server
+  and insert data into the postgres server
 replace: {}
