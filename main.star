@@ -1,79 +1,16 @@
-data_package_module = import_module("github.com/kurtosis-tech/awesome-kurtosis/data-package/main.star")
-
-POSTGRES_PORT_ID = "postgres"
-POSTGRES_DB = "app_db"
-POSTGRES_USER = "app_user"
-POSTGRES_PASSWORD = "password"
-
-SEED_DATA_DIRPATH = "/seed-data"
-
-POSTGREST_PORT_ID = "http"
+file_demo = import_module("file_demo.star")
+postgres_demo = import_module("postgres_demo.star")
+port_map = import_module("port_map.star")
+# 只有在 main.star 中才能访问本地文件，直接 kurtosis run ... xxx.star 时，不能访问本地文件
+# 所以测试都通过 main.star 运行
+# 自行注释掉不需要运行的 demo 即可
 
 def run(plan, args):
-    # 使数据可用于 Kurtosis
-    data_package_module_result = data_package_module.run(plan, {})
+    # 运行 file_demo.star 中的 run 函数
+    file_demo.run(plan, args)
 
-    # 添加一个 Postgres 服务器
-    postgres = plan.add_service(
-        name = "postgres",
-        config = ServiceConfig(
-            image = "postgres:15.2-alpine",
-            ports = {
-                POSTGRES_PORT_ID: PortSpec(5432, application_protocol = "postgresql"),
-            },
-            env_vars = {
-                "POSTGRES_DB": POSTGRES_DB,
-                "POSTGRES_USER": POSTGRES_USER,
-                "POSTGRES_PASSWORD": POSTGRES_PASSWORD,
-            },
-            files = {
-                SEED_DATA_DIRPATH: data_package_module_result.files_artifact,
-            }
-        ),
-    )
+    # # 运行 postgres_demo
+    # postgres_demo.run(plan, args)
 
-    # 将数据加载到 Postgres
-    postgres_flags = ["-U", POSTGRES_USER,"-d", POSTGRES_DB]
-    plan.exec(
-        service_name = "postgres",
-        recipe = ExecRecipe(command = ["pg_restore"] + postgres_flags + [
-            "--no-owner",
-            "--role=" + POSTGRES_USER,
-            SEED_DATA_DIRPATH + "/" + data_package_module_result.tar_filename,
-        ]),
-    )
-
-    # 添加 PostgREST
-    postgres_url = "postgresql://{}:{}@{}:{}/{}".format(
-        POSTGRES_USER,
-        POSTGRES_PASSWORD,
-        postgres.hostname,
-        postgres.ports[POSTGRES_PORT_ID].number,
-        POSTGRES_DB,
-    )
-    api = plan.add_service(
-        name = "api",
-        config = ServiceConfig(
-            image = "postgrest/postgrest:v10.2.0",
-            env_vars = {
-                "PGRST_DB_URI": postgres_url,
-                "PGRST_DB_ANON_ROLE": POSTGRES_USER,
-            },
-            ports = {POSTGREST_PORT_ID: PortSpec(3000, application_protocol = "http")},
-        )
-    )
-
-    # 插入数据
-    if "actors" in args:
-        insert_data(plan, args["actors"])
-
-def insert_data(plan, data):
-    plan.request(
-        service_name = "api",
-        recipe = PostHttpRequestRecipe(
-            port_id = POSTGREST_PORT_ID,
-            endpoint = "/actor",
-            content_type = "application/json",
-            body = json.encode(data),
-        )
-    )
+    # 容器端口映射到公共端口
+    port_map.run(plan, args)
